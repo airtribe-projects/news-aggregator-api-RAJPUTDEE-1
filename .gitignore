@@ -1,2 +1,12 @@
 node_modules
 .tap
+.env
+.env.local
+.DS_Store
+*.log
+dist/
+build/
+.idea/
+.vscode/
+*.swp
+*.swo

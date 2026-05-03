@@ -9,16 +9,20 @@ A RESTful API for a personalized news aggregator built with Node.js, Express.js,
 - **User Preferences Management**: Users can set and update their news preferences
 - **Personalized News Aggregation**: Fetch news articles based on user preferences
 - **Input Validation**: Comprehensive validation for all user inputs
-- **Error Handling**: Proper error handling and informative error messages
+- **Error Handling**: Proper error handling with custom error classes
+- **Logging System**: Structured logging for better debugging and monitoring
+- **Modular Architecture**: Clean separation of concerns with controllers, services, and routes
+- **Environment Configuration**: Secure configuration management with .env files
 - **RESTful Design**: Clean and intuitive API endpoints
 
 ## Technology Stack
 
-- **Node.js**: Runtime environment
+- **Node.js**: Runtime environment (>= 18.0.0)
 - **Express.js**: Web framework
 - **bcrypt**: Password hashing
 - **JWT (jsonwebtoken)**: Token-based authentication
 - **axios**: HTTP client for external API calls
+- **dotenv**: Environment variable management
 - **tap**: Testing framework
 - **supertest**: HTTP assertion library
 
@@ -40,10 +44,91 @@ cd news-aggregrator-api
 npm install
 ```
 
-3. Install additional required packages:
+3. Create `.env` file from `.env.example`:
 ```bash
-npm install bcrypt jsonwebtoken axios
+cp .env.example .env
 ```
+
+4. Update `.env` with your configuration:
+```env
+NODE_ENV=development
+PORT=3000
+
+JWT_SECRET=your-secret-key-here
+JWT_EXPIRY=24h
+
+NEWSCATCHER_API_KEY=your-api-key-here
+NEWSCATCHER_API_URL=https://api.newscatcherapi.com/v2/search
+
+LOG_LEVEL=debug
+```
+
+## Project Structure
+
+```
+news-aggregrator-api/
+├── src/
+│   ├── config/
+│   │   └── constants.js          # Configuration and constants
+│   ├── middleware/
+│   │   ├── authMiddleware.js     # JWT token verification
+│   │   ├── errorHandler.js       # Global error handling
+│   │   └── requestLogger.js      # Request logging
+│   ├── routes/
+│   │   ├── authRoutes.js         # Auth endpoints
+│   │   ├── userRoutes.js         # User preference endpoints
+│   │   └── newsRoutes.js         # News endpoints
+│   ├── controllers/
+│   │   ├── authController.js     # Auth request handlers
+│   │   ├── userController.js     # User request handlers
+│   │   └── newsController.js     # News request handlers
+│   ├── services/
+│   │   ├── authService.js        # Auth business logic
+│   │   ├── userService.js        # User business logic
+│   │   └── newsService.js        # News business logic
+│   ├── utils/
+│   │   ├── logger.js             # Logging utility
+│   │   ├── validators.js         # Input validators
+│   │   └── errors.js             # Custom error classes
+│   └── index.js                  # Express app configuration
+├── test/
+│   └── server.test.js            # Test suite
+├── app.js                        # Server entry point
+├── package.json                  # Dependencies
+├── .env                          # Environment variables
+├── .env.example                  # Environment example
+└── README.md                     # This file
+```
+
+## Architecture Overview
+
+### Layers
+
+1. **Controller Layer**: Handles HTTP requests/responses
+2. **Service Layer**: Contains business logic
+3. **Middleware Layer**: Handles cross-cutting concerns (auth, logging, errors)
+4. **Routes Layer**: Defines API endpoints
+5. **Utils Layer**: Shared utilities (validators, logger, errors)
+
+### Error Handling
+
+The application uses custom error classes for consistent error handling:
+- `AppError`: Base error class
+- `ValidationError`: Input validation errors (400)
+- `AuthenticationError`: Authentication failures (401)
+- `AuthorizationError`: Authorization failures (403)
+- `NotFoundError`: Resource not found (404)
+- `ConflictError`: Conflict errors (409)
+
+### Logging
+
+Structured logging system with multiple levels:
+- ERROR: Error messages
+- WARN: Warning messages
+- INFO: Informational messages
+- DEBUG: Debug messages
+
+Configure log level via `LOG_LEVEL` environment variable.
 
 ## API Endpoints
 
@@ -58,32 +143,20 @@ npm install bcrypt jsonwebtoken axios
   "name": "John Doe",
   "email": "john@example.com",
   "password": "SecurePassword123!",
-  "preferences": ["technology", "sports", "entertainment"]
+  "preferences": ["technology", "sports"]
 }
 ```
-- **Response** (Success - 200):
+- **Response** (200):
 ```json
 {
   "message": "User created successfully",
   "user": {
     "email": "john@example.com",
     "name": "John Doe",
-    "preferences": ["technology", "sports", "entertainment"]
+    "preferences": ["technology", "sports"]
   }
 }
 ```
-- **Response** (Validation Error - 400):
-```json
-{
-  "error": "Validation failed",
-  "details": ["Valid email is required"]
-}
-```
-- **Validation Rules**:
-  - Name: Required, non-empty string
-  - Email: Required, valid email format
-  - Password: Required, minimum 8 characters
-  - Preferences: Required, must be an array
 
 #### 2. User Login
 - **Endpoint**: `POST /users/login`
@@ -95,7 +168,7 @@ npm install bcrypt jsonwebtoken axios
   "password": "SecurePassword123!"
 }
 ```
-- **Response** (Success - 200):
+- **Response** (200):
 ```json
 {
   "message": "Login successful",
@@ -106,51 +179,29 @@ npm install bcrypt jsonwebtoken axios
   }
 }
 ```
-- **Response** (Invalid Credentials - 401):
-```json
-{
-  "error": "Invalid credentials"
-}
-```
 
 ### Protected Endpoints (Require Bearer Token)
 
 #### 3. Get User Preferences
 - **Endpoint**: `GET /users/preferences`
-- **Description**: Retrieve the user's news preferences
 - **Authentication**: Required (Bearer Token)
-- **Request Header**:
-```
-Authorization: Bearer <your-jwt-token>
-```
-- **Response** (Success - 200):
+- **Response** (200):
 ```json
 {
-  "preferences": ["technology", "sports", "entertainment"]
-}
-```
-- **Response** (Unauthorized - 401):
-```json
-{
-  "error": "No token provided"
+  "preferences": ["technology", "sports"]
 }
 ```
 
 #### 4. Update User Preferences
 - **Endpoint**: `PUT /users/preferences`
-- **Description**: Update the user's news preferences
 - **Authentication**: Required (Bearer Token)
-- **Request Header**:
-```
-Authorization: Bearer <your-jwt-token>
-```
 - **Request Body**:
 ```json
 {
   "preferences": ["technology", "business", "health"]
 }
 ```
-- **Response** (Success - 200):
+- **Response** (200):
 ```json
 {
   "message": "Preferences updated successfully",
@@ -158,15 +209,22 @@ Authorization: Bearer <your-jwt-token>
 }
 ```
 
-#### 5. Get Personalized News
-- **Endpoint**: `GET /news`
-- **Description**: Fetch news articles based on user preferences
+#### 5. Get User Profile
+- **Endpoint**: `GET /users/profile`
 - **Authentication**: Required (Bearer Token)
-- **Request Header**:
+- **Response** (200):
+```json
+{
+  "email": "john@example.com",
+  "name": "John Doe",
+  "preferences": ["technology", "sports"]
+}
 ```
-Authorization: Bearer <your-jwt-token>
-```
-- **Response** (Success - 200):
+
+#### 6. Get Personalized News
+- **Endpoint**: `GET /news`
+- **Authentication**: Required (Bearer Token)
+- **Response** (200):
 ```json
 {
   "news": [
@@ -182,17 +240,45 @@ Authorization: Bearer <your-jwt-token>
   "count": 10
 }
 ```
-- **Response** (No Preferences - 200):
+
+#### 7. Search News
+- **Endpoint**: `GET /news/search?query=technology&lang=en&sortBy=relevancy&page=1`
+- **Authentication**: Required (Bearer Token)
+- **Query Parameters**:
+  - `query` (required): Search query
+  - `lang` (optional): Language code (default: en)
+  - `sortBy` (optional): Sort by (default: relevancy)
+  - `page` (optional): Page number (default: 1)
+- **Response** (200):
 ```json
 {
-  "news": [],
-  "message": "No preferences set. Please set your news preferences first."
+  "news": [...],
+  "count": 10
 }
 ```
 
-## Usage Example
+### Utility Endpoints
 
-### 1. Signup
+#### 8. Health Check
+- **Endpoint**: `GET /health`
+- **Response** (200):
+```json
+{
+  "status": "OK",
+  "message": "Server is healthy"
+}
+```
+
+## Usage Examples
+
+### 1. Start the server
+```bash
+node app.js
+# or
+npm start
+```
+
+### 2. Signup
 ```bash
 curl -X POST http://localhost:3000/users/signup \
   -H "Content-Type: application/json" \
@@ -204,7 +290,7 @@ curl -X POST http://localhost:3000/users/signup \
   }'
 ```
 
-### 2. Login
+### 3. Login
 ```bash
 curl -X POST http://localhost:3000/users/login \
   -H "Content-Type: application/json" \
@@ -214,13 +300,13 @@ curl -X POST http://localhost:3000/users/login \
   }'
 ```
 
-### 3. Get Preferences (using token from login)
+### 4. Get Preferences
 ```bash
 curl -X GET http://localhost:3000/users/preferences \
   -H "Authorization: Bearer <your-jwt-token>"
 ```
 
-### 4. Update Preferences
+### 5. Update Preferences
 ```bash
 curl -X PUT http://localhost:3000/users/preferences \
   -H "Authorization: Bearer <your-jwt-token>" \
@@ -230,97 +316,196 @@ curl -X PUT http://localhost:3000/users/preferences \
   }'
 ```
 
-### 5. Get News
+### 6. Get News
 ```bash
 curl -X GET http://localhost:3000/news \
   -H "Authorization: Bearer <your-jwt-token>"
 ```
 
+### 7. Search News
+```bash
+curl -X GET "http://localhost:3000/news/search?query=technology" \
+  -H "Authorization: Bearer <your-jwt-token>"
+```
+
 ## Running Tests
 
-Run the test suite to verify all endpoints:
+Run the complete test suite:
 
 ```bash
 npm run test
 ```
 
-Expected output:
+Expected output: All tests pass ✓
+
+Test coverage includes:
+- User signup validation
+- User login with valid/invalid credentials
+- Preferences management
+- News aggregation
+- Token-based authentication
+- Authorization checks
+
+## Best Practices Implemented
+
+### 1. **Separation of Concerns**
+   - Controllers: Handle HTTP requests/responses
+   - Services: Contain business logic
+   - Middleware: Cross-cutting concerns
+   - Routes: Define endpoints
+
+### 2. **Error Handling**
+   - Custom error classes for different error types
+   - Centralized error handler middleware
+   - Async error wrapper for try-catch
+   - Proper HTTP status codes
+
+### 3. **Input Validation**
+   - Centralized validation utilities
+   - Validation throws custom errors
+   - Comprehensive error messages
+   - Type checking
+
+### 4. **Logging**
+   - Structured logging at different levels
+   - Timestamps and context information
+   - Easy to configure log levels
+   - Helpful for debugging and monitoring
+
+### 5. **Security**
+   - Password hashing with bcrypt (10 rounds)
+   - JWT tokens with 24h expiry
+   - Bearer token extraction and validation
+   - Environment variables for secrets
+   - Generic error messages (no information leakage)
+
+### 6. **Configuration Management**
+   - Environment-based configuration
+   - .env and .env.example files
+   - Centralized constants
+   - Easy to switch between environments
+
+### 7. **Code Organization**
+   - Modular file structure
+   - Clear naming conventions
+   - JSDoc comments for functions
+   - Middleware chain approach
+
+### 8. **Request Logging**
+   - Log all requests with method, path, status, duration
+   - Help with API usage tracking
+   - Useful for performance monitoring
+
+## Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+# Server Configuration
+NODE_ENV=development
+PORT=3000
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-change-this-in-production
+JWT_EXPIRY=24h
+
+# External API Configuration
+NEWSCATCHER_API_KEY=your-newscatcher-api-key
+NEWSCATCHER_API_URL=https://api.newscatcherapi.com/v2/search
+
+# Logging Configuration
+LOG_LEVEL=debug
 ```
-✓ POST /users/signup
-✓ POST /users/signup with missing email
-✓ POST /users/login
-✓ POST /users/login with wrong password
-✓ GET /users/preferences
-✓ GET /users/preferences without token
-✓ PUT /users/preferences
-✓ Check PUT /users/preferences
-✓ GET /news
-✓ GET /news without token
-...
-```
 
-## Starting the Server
+## Security Notes
 
-```bash
-node app.js
-```
+1. **Never commit `.env` file** to version control
+2. **Change JWT_SECRET** in production
+3. **Use HTTPS** in production
+4. **Implement rate limiting** in production
+5. **Add request size limits** for file uploads
+6. **Use CORS** if needed
+7. **Add input sanitization** for XSS prevention
+8. **Implement CSRF protection** if using cookies
 
-The server will start on port 3000.
+## Production Deployment
 
-## Project Structure
+For production deployment, consider:
 
-```
-news-aggregrator-api/
-├── app.js                 # Main application file with all routes and logic
-├── package.json          # Project dependencies
-├── package-lock.json     # Locked dependency versions
-├── test/
-│   └── server.test.js   # Test suite
-└── README.md            # This file
-```
+1. **Database Integration**
+   - Replace in-memory storage with MongoDB/PostgreSQL
+   - Implement data persistence
 
-## Security Features
+2. **Caching**
+   - Add Redis for caching news articles
+   - Cache user preferences
 
-1. **Password Hashing**: Passwords are hashed using bcrypt with salt rounds of 10
-2. **JWT Authentication**: Tokens expire after 24 hours
-3. **Input Validation**: All user inputs are validated before processing
-4. **Token-Based Access Control**: Protected endpoints require valid JWT tokens
-5. **Error Messages**: Generic error messages for security (e.g., "Invalid credentials")
+3. **Monitoring**
+   - Add APM tools (New Relic, DataDog)
+   - Implement health checks
+   - Monitor error rates
 
-## External API Integration
+4. **API Gateway**
+   - Add API Gateway for rate limiting
+   - Implement request validation at gateway level
 
-This API integrates with the **NewsCatcher News API** to fetch real-time news articles based on user preferences.
+5. **Load Balancing**
+   - Deploy multiple instances
+   - Use load balancer
 
-- **API Endpoint**: `https://api.newscatcherapi.com/v2/search`
-- **Authentication**: API key-based authentication
-- **Rate Limiting**: Respects API rate limits
-
-## Error Handling
-
-The API provides detailed error responses with appropriate HTTP status codes:
-
-- **400 Bad Request**: Invalid input or validation errors
-- **401 Unauthorized**: Missing or invalid token
-- **404 Not Found**: Resource not found
-- **500 Internal Server Error**: Server-side errors
-
-## Development Notes
-
-- User data is stored in-memory. For production, integrate a database like MongoDB or PostgreSQL.
-- JWT secret key should be stored in environment variables in production.
-- Implement rate limiting for production environments.
-- Add request logging and monitoring.
+6. **Environment Management**
+   - Use separate environments (staging, production)
+   - Different configurations for each environment
 
 ## Future Enhancements
 
-- Database integration (MongoDB/PostgreSQL)
-- Email verification
-- Password reset functionality
-- User profile management
-- News article caching
-- Advanced filtering and search
-- Multiple API provider support
-- User subscription plans
+- [ ] Database integration (MongoDB/PostgreSQL)
+- [ ] Email verification
+- [ ] Password reset functionality
+- [ ] User profile management
+- [ ] News article caching
+- [ ] Advanced filtering and search
+- [ ] Multiple news API providers
+- [ ] User subscription plans
+- [ ] Rate limiting
+- [ ] API documentation (Swagger/OpenAPI)
+- [ ] CI/CD pipeline
+- [ ] Docker containerization
+- [ ] Unit tests
+- [ ] Integration tests
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port already in use**
+   ```
+   Change PORT in .env file
+   ```
+
+2. **API Key not working**
+   ```
+   Verify NEWSCATCHER_API_KEY in .env
+   ```
+
+3. **JWT validation fails**
+   ```
+   Check JWT_SECRET is set correctly
+   ```
+
+4. **Tests failing**
+   ```
+   npm run test
+   Check for missing dependencies
+   ```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
@@ -329,3 +514,8 @@ ISC
 ## Author
 
 Airtribe - Backend Engineering Launchpad
+
+## Support
+
+For issues, questions, or suggestions, please create an issue in the repository.
+
