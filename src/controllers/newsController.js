@@ -4,6 +4,8 @@
 
 const logger = require('../utils/logger');
 const newsService = require('../services/newsService');
+const validators = require('../utils/validators');
+const config = require('../config/constants');
 
 const newsController = {
     /**
@@ -19,7 +21,10 @@ const newsController = {
 
             res.status(200).json({
                 news,
-                count: news.length
+                count: news.length,
+                total: news.length,
+                page: 1,
+                limit: config.DEFAULT_PAGE_SIZE
             });
         } catch (error) {
             next(error);
@@ -42,11 +47,8 @@ const newsController = {
 
             logger.debug('Search news request', { query, limit, context, start_date, end_date, mode });
 
-            if (!query) {
-                return res.status(400).json({
-                    error: 'Query parameter is required'
-                });
-            }
+            // Validate search query (must be >= 3 words, >= 10 chars)
+            validators.validateSearchInput({ query });
 
             const numericLimit = limit ? Number(limit) : undefined;
             if (limit && (Number.isNaN(numericLimit) || numericLimit <= 0)) {
@@ -87,11 +89,17 @@ const newsController = {
                 return res.status(200).json({
                     news: result.articles,
                     count: result.articles.length,
+                    total: result.articles.length,
+                    page: 1,
+                    limit: config.DEFAULT_PAGE_SIZE,
                     status: result.status
                 });
             }
 
-            return res.status(202).json({ status: result.status });
+            return res.status(202).json({
+                status: result.status,
+                message: 'Job still processing, please retry'
+            });
         } catch (error) {
             next(error);
         }

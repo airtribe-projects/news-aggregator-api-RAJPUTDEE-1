@@ -87,6 +87,33 @@ const validators = {
         }
 
         return true;
+    },
+
+    /**
+     * Validate search query input
+     */
+    validateSearchInput: (data) => {
+        const errors = [];
+
+        if (!data.query || typeof data.query !== 'string' || data.query.trim() === '') {
+            errors.push('Query is required and must be a non-empty string');
+        } else {
+            const wordCount = data.query.trim().split(/\s+/).length;
+            const charCount = data.query.trim().length;
+            
+            if (wordCount < 3) {
+                errors.push('Query must be at least 3 words');
+            }
+            if (charCount < 10) {
+                errors.push('Query must be at least 10 characters');
+            }
+        }
+
+        if (errors.length > 0) {
+            throw new ValidationError('Invalid search query', errors);
+        }
+
+        return true;
     }
 };
 
