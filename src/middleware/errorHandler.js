@@ -47,10 +47,21 @@ const errorHandler = (err, req, res, next) => {
         });
     }
 
-    // Unexpected errors (don't leak details to client)
+    // NewsCatcher API errors - expose details for debugging
+    if (err.message?.includes('NewsCatcher API')) {
+        logger.error('External API error', { message: err.message, statusCode: err.statusCode, errorResponse: err.errorResponse });
+        const upstreamStatus = Number.isInteger(err.statusCode) ? err.statusCode : 502;
+        return res.status(upstreamStatus).json({
+            error: err.message,
+            details: err.errorResponse || {}
+        });
+    }
+
+    // Unexpected errors - log but also expose a descriptive message
     logger.error('Unexpected error', { message: err.message, stack: err.stack });
     return res.status(500).json({
-        error: 'Internal Server Error'
+        error: err.message || 'Internal Server Error',
+        type: 'internal_error'
     });
 };
 

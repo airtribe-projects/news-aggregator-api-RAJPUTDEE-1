@@ -31,9 +31,16 @@ const newsController = {
      */
     searchNews: async (req, res, next) => {
         try {
-            const { query, lang, sortBy, page } = req.query;
+            const {
+                query,
+                limit,
+                context,
+                start_date,
+                end_date,
+                mode
+            } = req.query;
 
-            logger.debug('Search news request', { query, lang, sortBy, page });
+            logger.debug('Search news request', { query, limit, context, start_date, end_date, mode });
 
             if (!query) {
                 return res.status(400).json({
@@ -41,16 +48,50 @@ const newsController = {
                 });
             }
 
-            const news = await newsService.searchNews(query, {
-                lang,
-                sortBy,
-                page
+            const numericLimit = limit ? Number(limit) : undefined;
+            if (limit && (Number.isNaN(numericLimit) || numericLimit <= 0)) {
+                return res.status(400).json({
+                    error: 'limit must be a positive number'
+                });
+            }
+
+            // Submit job and return job id immediately (async workflow)
+            const jobId = await newsService.submitSearchJob(query, {
+                limit: numericLimit,
+                context,
+                start_date,
+                end_date,
+                mode
             });
 
-            res.status(200).json({
-                news,
-                count: news.length
+            return res.status(202).json({
+                job_id: jobId,
+                status_url: `/news/job/${jobId}`
             });
+        } catch (error) {
+            next(error);
+        }
+    }
+,
+    /**
+     * Get job results (async)
+     */
+    getJob: async (req, res, next) => {
+        try {
+            const jobId = req.params.jobId;
+            logger.debug('Get job request', { jobId });
+
+            const result = await newsService.fetchJobIfReady(jobId);
+
+            if (result.ready) {
+                return res.status(200).json({
+                    news: result.articles,
+                    count: result.articles.length,
+                    status: result.status
+                });
+            }
+
+            return res.status(202).json({ status: result.status });
         } catch (error) {
             next(error);
         }

@@ -22,10 +22,11 @@ const config = {
     NEWSCATCHER_SUBMIT_ENDPOINT: '/catchAll/submit',
     NEWSCATCHER_STATUS_ENDPOINT: '/catchAll/status',
     NEWSCATCHER_PULL_ENDPOINT: '/catchAll/pull',
+    NEWSCATCHER_REQUEST_TIMEOUT: Number(process.env.NEWSCATCHER_REQUEST_TIMEOUT || 10000),
     
     // Job polling configuration
-    NEWSCATCHER_JOB_POLL_INTERVAL: 2000, // 2 seconds between polls
-    NEWSCATCHER_JOB_MAX_POLLS: 5, // Maximum 10 seconds total
+    NEWSCATCHER_JOB_POLL_INTERVAL: Number(process.env.NEWSCATCHER_JOB_POLL_INTERVAL || 30000), // 30 seconds between polls
+    NEWSCATCHER_JOB_MAX_POLLS: Number(process.env.NEWSCATCHER_JOB_MAX_POLLS || 30), // Up to 15 minutes total
 
     // Logging
     LOG_LEVEL: process.env.LOG_LEVEL || 'info',

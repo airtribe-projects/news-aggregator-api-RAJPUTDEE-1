@@ -142,6 +142,35 @@
             },
             "description": "Login user and receive JWT token (valid for 24 hours)"
           },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login should return 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const data = pm.response.json();",
+                  "let token = data.token || '';",
+                  "",
+                  "// Normalize token in case Bearer prefix was accidentally included",
+                  "if (token.startsWith('Bearer ')) {",
+                  "    token = token.replace('Bearer ', '').trim();",
+                  "}",
+                  "",
+                  "pm.test('Token should exist', function () {",
+                  "    pm.expect(token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('token', token);",
+                  "pm.environment.set('token', token);",
+                  "console.log('Saved token to collection/environment variables');"
+                ]
+              }
+            }
+          ],
           "response": [
             {
               "name": "Success - 200",

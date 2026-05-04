@@ -22,4 +22,11 @@ router.get('/', verifyToken, catchAsyncErrors(newsController.getNews));
  */
 router.get('/search', verifyToken, catchAsyncErrors(newsController.searchNews));
 
+/**
+ * @route GET /news/job/:jobId
+ * @description Fetch job results by job id (async)
+ * @access Private
+ */
+router.get('/job/:jobId', verifyToken, catchAsyncErrors(newsController.getJob));
+
 module.exports = router;

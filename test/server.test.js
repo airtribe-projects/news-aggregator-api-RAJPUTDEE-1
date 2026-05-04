@@ -72,6 +72,15 @@ tap.test('PUT /users/preferences', async (t) => {
     t.equal(response.status, 200);
 });
 
+
+// Stub newsService to avoid external API calls during tests
+const newsService = require('../src/services/newsService');
+const _origSubmit = newsService.submitSearchJob;
+const _origFetch = newsService.fetchJobIfReady;
+
+newsService.submitSearchJob = async () => 'test-job-123';
+newsService.fetchJobIfReady = async (jobId) => ({ ready: true, status: 'completed', articles: [{ title: 'Stubbed article', link: 'https://example.com' }] });
+
 tap.test('Check PUT /users/preferences', async (t) => {
     const response = await server.get('/users/preferences').set('Authorization', `Bearer ${token}`);
     t.equal(response.status, 200);
@@ -80,6 +89,7 @@ tap.test('Check PUT /users/preferences', async (t) => {
 });
 
 // News tests
+
 
 tap.test('GET /news', async (t) => {
     const response = await server.get('/news').set('Authorization', `Bearer ${token}`);
@@ -99,3 +109,7 @@ tap.test('GET /news without token', async (t) => {
 tap.teardown(() => {
     process.exit(0);
 });
+
+    // restore originals
+    newsService.submitSearchJob = _origSubmit;
+    newsService.fetchJobIfReady = _origFetch;
