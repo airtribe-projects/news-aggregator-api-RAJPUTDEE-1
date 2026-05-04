@@ -10,7 +10,7 @@ const { AuthenticationError } = require('../utils/errors');
 /**
  * Verify JWT token from Authorization header
  */
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
 
@@ -27,16 +27,16 @@ const verifyToken = (req, res, next) => {
 
         const token = parts[1];
 
-        jwt.verify(token, config.JWT_SECRET, (err, decoded) => {
-            if (err) {
-                logger.warn('Invalid token', { error: err.message });
-                throw new AuthenticationError('Invalid token');
-            }
-
+        // Use synchronous verification so errors are handled in this scope
+        try {
+            const decoded = jwt.verify(token, config.JWT_SECRET);
             req.userId = decoded.userId;
             logger.debug('Token verified', { userId: req.userId });
-            next();
-        });
+            return next();
+        } catch (verifyError) {
+            logger.warn('Invalid token', { error: verifyError.message });
+            return next(new AuthenticationError('Invalid token'));
+        }
     } catch (error) {
         next(error);
     }
