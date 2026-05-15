@@ -1,17 +1,19 @@
-const express = require('express');
-const app = express();
-const port = 3000;
+require('dotenv').config();
+const app = require('./src/index');
+const config = require('./src/config/constants');
+const logger = require('./src/utils/logger');
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const port = config.PORT || 3000;
 
-app.listen(port, (err) => {
-    if (err) {
-        return console.log('Something bad happened', err);
-    }
-    console.log(`Server is listening on ${port}`);
-});
-
-
+if (require.main === module) {
+    app.listen(port, (err) => {
+        if (err) {
+            logger.error('Something bad happened', { error: err.message });
+            return process.exit(1);
+        }
+        logger.info(`Server is listening on port ${port}`);
+        logger.info(`Environment: ${config.NODE_ENV}`);
+    });
+}
 
 module.exports = app;
