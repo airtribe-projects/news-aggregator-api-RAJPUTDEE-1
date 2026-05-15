@@ -7,6 +7,19 @@ const newsService = require('../services/newsService');
 const validators = require('../utils/validators');
 const config = require('../config/constants');
 
+const sendNewsResponse = (res, news, extra = {}) => {
+    const count = news.length;
+
+    return res.status(200).json({
+        news,
+        count,
+        total: count,
+        page: 1,
+        limit: config.DEFAULT_PAGE_SIZE,
+        ...extra
+    });
+};
+
 const newsController = {
     /**
      * Get personalized news endpoint
@@ -15,17 +28,15 @@ const newsController = {
         try {
             const userId = req.userId;
 
+            if (!userId) {
+                throw new Error('Unauthorized request');
+            }
+
             logger.debug('Get news request', { userId });
 
             const news = await newsService.getNewsByPreferences(userId);
 
-            res.status(200).json({
-                news,
-                count: news.length,
-                total: news.length,
-                page: 1,
-                limit: config.DEFAULT_PAGE_SIZE
-            });
+            sendNewsResponse(res, news);
         } catch (error) {
             next(error);
         }
@@ -86,14 +97,7 @@ const newsController = {
             const result = await newsService.fetchJobIfReady(jobId);
 
             if (result.ready) {
-                return res.status(200).json({
-                    news: result.articles,
-                    count: result.articles.length,
-                    total: result.articles.length,
-                    page: 1,
-                    limit: config.DEFAULT_PAGE_SIZE,
-                    status: result.status
-                });
+                return sendNewsResponse(res, result.articles, { status: result.status });
             }
 
             return res.status(202).json({

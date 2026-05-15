@@ -1,3 +1,6 @@
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+
 const tap = require('tap');
 const supertest = require('supertest');
 const app = require('../app');
@@ -16,7 +19,7 @@ let token = '';
 
 tap.test('POST /users/signup', async (t) => { 
     const response = await server.post('/users/signup').send(mockUser);
-    t.equal(response.status, 200);
+    t.equal(response.status, 201);
     t.end();
 });
 
@@ -76,9 +79,13 @@ tap.test('PUT /users/preferences', async (t) => {
 // Stub newsService to avoid external API calls during tests
 const newsService = require('../src/services/newsService');
 const _origSubmit = newsService.submitSearchJob;
+const _origPoll = newsService.pollJobStatus;
 const _origFetch = newsService.fetchJobIfReady;
+const _origGetResults = newsService.getJobResults;
 
 newsService.submitSearchJob = async () => 'test-job-123';
+newsService.pollJobStatus = async () => true;
+newsService.getJobResults = async () => ([{ title: 'Stubbed article', link: 'https://example.com' }]);
 newsService.fetchJobIfReady = async (jobId) => ({ ready: true, status: 'completed', articles: [{ title: 'Stubbed article', link: 'https://example.com' }] });
 
 tap.test('Check PUT /users/preferences', async (t) => {
@@ -185,6 +192,7 @@ tap.test('GET /news with malformed token', async (t) => {
 tap.teardown(() => {
     // restore originals
     newsService.submitSearchJob = _origSubmit;
+    newsService.pollJobStatus = _origPoll;
     newsService.fetchJobIfReady = _origFetch;
-    process.exit(0);
+    newsService.getJobResults = _origGetResults;
 });

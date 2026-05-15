@@ -23,6 +23,8 @@ const newscatcherClient = axios.create({
 const STATUS_COMPLETED = new Set(['completed', 'done']);
 const STATUS_FAILED = 'failed';
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Only pass known CatchAll submit fields to avoid leaking unsupported query params
 const ALLOWED_SUBMIT_OPTION_KEYS = new Set([
     'limit',
@@ -97,9 +99,16 @@ const normalizePullResponse = (data = {}) => {
  */
 const apiRequest = async (method, url, data = null) => {
     try {
-        if (method === 'get') return await newscatcherClient.get(url);
-        if (method === 'post') return await newscatcherClient.post(url, data);
-        throw new Error(`Unsupported method: ${method}`);
+        const handlers = {
+            get: () => newscatcherClient.get(url),
+            post: () => newscatcherClient.post(url, data)
+        };
+
+        if (!handlers[method]) {
+            throw new Error(`Unsupported method: ${method}`);
+        }
+
+        return await handlers[method]();
     } catch (error) {
         // Extract detailed error info from NewsCatcher API response
         const errorData = error.response?.data || {};
@@ -197,7 +206,7 @@ const submitSearchJob = async (query, options = {}) => {
                 }
                 const backoffMs = 1000 * Math.pow(2, attempt);
                 logger.warn('Submit concurrency limit hit, retrying', { query, attempt, backoffMs });
-                await new Promise(r => setTimeout(r, backoffMs));
+                await delay(backoffMs);
             }
         }
 
@@ -255,9 +264,7 @@ const pollJobStatus = async (jobId, maxPolls = config.NEWSCATCHER_JOB_MAX_POLLS)
 
             // Wait before next poll (except on last iteration)
             if (i < maxPolls - 1) {
-                await new Promise(resolve => 
-                    setTimeout(resolve, config.NEWSCATCHER_JOB_POLL_INTERVAL)
-                );
+                await delay(config.NEWSCATCHER_JOB_POLL_INTERVAL);
             }
         } catch (error) {
             // Handle timeout errors more gracefully
@@ -303,6 +310,11 @@ const getJobResults = async (jobId) => {
     }
 };
 
+/**
+ * Normalize CatchAll pull payloads.
+ * Supports NewsCatcher responses that expose `articles`, `all_records`, or `records`.
+ */
+
 const newsService = {
     /**
      * Initialize NewsCatcher API connection
@@ -335,13 +347,13 @@ const newsService = {
                         logger.debug('Processing preference', { preference });
 
                         // Submit job
-                        const jobId = await submitSearchJob(preference);
+                        const jobId = await newsService.submitSearchJob(preference);
 
                         // Poll until completion
-                        await pollJobStatus(jobId);
+                        await newsService.pollJobStatus(jobId);
 
                         // Get results
-                        const articles = await getJobResults(jobId);
+                        const articles = await newsService.getJobResults(jobId);
 
                         logger.info('Preference processed successfully', { 
                             preference, 
@@ -406,15 +418,15 @@ const newsService = {
             }
 
             // Submit search job
-            const jobId = await submitSearchJob(query, options);
+            const jobId = await newsService.submitSearchJob(query, options);
 
             logger.debug('Waiting for search job to complete', { jobId });
 
             // Poll until job completes
-            await pollJobStatus(jobId);
+            await newsService.pollJobStatus(jobId);
 
             // Get results
-            const articles = await getJobResults(jobId);
+            const articles = await newsService.getJobResults(jobId);
 
             logger.info('News search completed successfully', { 
                 query, 
@@ -431,6 +443,7 @@ const newsService = {
 
 // Expose lower-level functions for async workflows (submit job, pull results)
 newsService.submitSearchJob = submitSearchJob;
+newsService.pollJobStatus = pollJobStatus;
 newsService.getJobResults = getJobResults;
 
 /**
@@ -442,15 +455,20 @@ newsService.fetchJobIfReady = async (jobId) => {
         const statusResp = await apiRequest('get', statusUrl);
         const statusData = statusResp.data || {};
 
+        const status = statusData?.status;
         const validRecords = Number(statusData?.valid_records || 0);
         const progressValidated = Number(statusData?.progress_validated || 0);
 
-        if (STATUS_COMPLETED.has(statusData?.status) || validRecords > 0 || progressValidated > 0) {
-            const articles = await getJobResults(jobId);
-            return { ready: true, status: statusData?.status, articles };
+        if (!status) {
+            logger.warn('Job status missing or unexpected', { jobId, statusData });
         }
 
-        return { ready: false, status: statusData?.status };
+        if (STATUS_COMPLETED.has(status) || validRecords > 0 || progressValidated > 0) {
+            const articles = await newsService.getJobResults(jobId);
+            return { ready: true, status, articles };
+        }
+
+        return { ready: false, status };
     } catch (error) {
         throw error;
     }

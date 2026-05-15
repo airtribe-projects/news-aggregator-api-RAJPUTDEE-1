@@ -1,20 +1,14 @@
-/**
- * Request logging middleware
- */
-
 const logger = require('../utils/logger');
 
-/**
- * Log incoming requests
- */
 const requestLogger = (req, res, next) => {
     const start = Date.now();
 
-    res.on('finish', () => {
+    res.once('finish', () => {
         const duration = Date.now() - start;
         logger.info(`${req.method} ${req.path}`, {
             method: req.method,
             path: req.path,
+            ip: req.ip,
             status: res.statusCode,
             duration: `${duration}ms`
         });

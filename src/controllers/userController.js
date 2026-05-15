@@ -16,7 +16,7 @@ const userController = {
 
             logger.debug('Get preferences request', { userId });
 
-            const preferences = userService.getPreferences(userId);
+            const preferences = await userService.getPreferences(userId);
 
             res.status(200).json({
                 preferences
@@ -42,7 +42,7 @@ const userController = {
             });
 
             // Call service
-            const updatedPreferences = userService.updatePreferences(userId, preferences);
+            const updatedPreferences = await userService.updatePreferences(userId, preferences);
 
             res.status(200).json({
                 message: 'Preferences updated successfully',
@@ -62,7 +62,7 @@ const userController = {
 
             logger.debug('Get profile request', { userId });
 
-            const user = userService.getUserById(userId);
+            const user = await userService.getUserById(userId);
 
             res.status(200).json(user);
         } catch (error) {

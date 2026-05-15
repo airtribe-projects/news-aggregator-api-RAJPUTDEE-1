@@ -1,16 +1,23 @@
-/**
- * Application configuration and constants
- */
-
 require('dotenv').config();
+
+const parsePort = (value, fallback = 3000) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const jwtSecret = process.env.JWT_SECRET;
+
+if (!jwtSecret) {
+    throw new Error('JWT_SECRET environment variable is required');
+}
 
 const config = {
     // Server
-    PORT: process.env.PORT || 3000,
+    PORT: parsePort(process.env.PORT),
     NODE_ENV: process.env.NODE_ENV || 'development',
 
     // JWT
-    JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key-change-this-in-production',
+    JWT_SECRET: jwtSecret,
     JWT_EXPIRY: process.env.JWT_EXPIRY || '24h',
 
     // External APIs - NewsCatcher CatchAll API
